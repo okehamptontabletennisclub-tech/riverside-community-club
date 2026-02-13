@@ -5,10 +5,13 @@
 // Replace this with your Google Sheet ID
 // To find it: Open your sheet, look at the URL
 // https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = '1mqqQIZvbGAO4546OGMPx4FoD2elEfLzmSbaZSFti3E8';
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
 
 // The name of your sheet tab (default is "Booking Calendar")
 const SHEET_NAME = 'Booking Calendar';
+
+// Global state for current week offset
+let currentWeekOffset = 0;
 
 // ====================================
 // MAIN FUNCTIONS
@@ -124,7 +127,7 @@ function formatTime(value, formatted) {
     return value ? value.toString() : '';
 }
 
-function getCurrentWeekDates() {
+function getWeekDates(weekOffset = 0) {
     const today = new Date();
     const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
@@ -133,6 +136,9 @@ function getCurrentWeekDates() {
     const dayOffset = currentDay === 0 ? -6 : 1 - currentDay;
     monday.setDate(today.getDate() + dayOffset);
     monday.setHours(0, 0, 0, 0);
+    
+    // Add week offset
+    monday.setDate(monday.getDate() + (weekOffset * 7));
     
     // Generate all 7 days
     const weekDates = [];
@@ -150,7 +156,11 @@ function displayWeek(weekDates) {
     const end = formatDateShort(weekDates[6]);
     
     const weekDisplay = document.getElementById('weekDisplay');
-    weekDisplay.textContent = `Week of ${start} - ${end}`;
+    weekDisplay.innerHTML = `
+        <button class="week-nav-btn" id="prevWeek" onclick="changeWeek(-1)">←</button>
+        <span class="week-text">Week of ${start} - ${end}</span>
+        <button class="week-nav-btn" id="nextWeek" onclick="changeWeek(1)">→</button>
+    `;
 }
 
 function formatDateShort(date) {
@@ -159,13 +169,19 @@ function formatDateShort(date) {
     return `${day} ${month}`;
 }
 
-function buildTimetable(sessions, weekDates) {
-    // Generate time slots (7am to 11pm)
-    const timeSlots = [];
-    for (let hour = 7; hour <= 22; hour++) {
-        timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-    }
+function getTimeOfDay(timeStr) {
+    if (!timeStr) return null;
     
+    const hour = parseInt(timeStr.split(':')[0]);
+    
+    if (hour < 12) {
+        return 'AM';
+    } else {
+        return 'PM';
+    }
+}
+
+function buildTimetable(sessions, weekDates) {
     // Group sessions by day
     const sessionsByDay = {};
     weekDates.forEach((date, index) => {
@@ -207,73 +223,85 @@ function buildTimetable(sessions, weekDates) {
         timetable.appendChild(dayHeader);
     });
     
-    // Time slot rows
-    timeSlots.forEach(timeSlot => {
-        // Time label
-        const timeLabel = document.createElement('div');
-        timeLabel.className = 'time-slot';
-        timeLabel.textContent = timeSlot;
-        timetable.appendChild(timeLabel);
+    // AM Row
+    const amLabel = document.createElement('div');
+    amLabel.className = 'time-slot';
+    amLabel.textContent = 'AM';
+    timetable.appendChild(amLabel);
+    
+    weekDates.forEach((date, dayIndex) => {
+        const cell = document.createElement('div');
+        cell.className = 'timetable-cell';
         
-        // Cells for each day
-        weekDates.forEach((date, dayIndex) => {
-            const cell = document.createElement('div');
-            cell.className = 'timetable-cell';
-            
-            // Find sessions that overlap with this time slot
-            const daySessions = sessionsByDay[dayIndex] || [];
-            const matchingSessions = daySessions.filter(session => {
-                if (!session.startTime) return false;
-                
-                const sessionStart = session.startTime.substring(0, 5); // HH:MM
-                const slotHour = parseInt(timeSlot.substring(0, 2));
-                const sessionHour = parseInt(sessionStart.substring(0, 2));
-                
-                // Show session in its starting hour slot
-                return sessionHour === slotHour;
-            });
-            
-            // Add session blocks
-            matchingSessions.forEach(session => {
-                const sessionBlock = document.createElement('div');
-                sessionBlock.className = 'session-block';
-                
-                // Determine room class
-                const room = session.room.toLowerCase();
-                if (room.includes('practice')) {
-                    sessionBlock.classList.add('practice-room');
-                } else if (room.includes('half')) {
-                    sessionBlock.classList.add('half-hall');
-                }
-                
-                const sessionName = document.createElement('div');
-                sessionName.className = 'session-name';
-                sessionName.textContent = session.publicName;
-                
-                const sessionTime = document.createElement('div');
-                sessionTime.className = 'session-time';
-                sessionTime.textContent = session.startTime && session.endTime 
-                    ? `${session.startTime} - ${session.endTime}` 
-                    : session.startTime || '';
-                
-                const sessionRoom = document.createElement('div');
-                sessionRoom.className = 'session-room';
-                sessionRoom.textContent = session.room;
-                
-                sessionBlock.appendChild(sessionName);
-                sessionBlock.appendChild(sessionTime);
-                sessionBlock.appendChild(sessionRoom);
-                
-                cell.appendChild(sessionBlock);
-                cell.classList.add('has-session');
-            });
-            
-            timetable.appendChild(cell);
+        const daySessions = sessionsByDay[dayIndex] || [];
+        const amSessions = daySessions.filter(session => getTimeOfDay(session.startTime) === 'AM');
+        
+        amSessions.forEach(session => {
+            const sessionBlock = createSessionBlock(session);
+            cell.appendChild(sessionBlock);
+            cell.classList.add('has-session');
         });
+        
+        timetable.appendChild(cell);
+    });
+    
+    // PM Row
+    const pmLabel = document.createElement('div');
+    pmLabel.className = 'time-slot';
+    pmLabel.textContent = 'PM';
+    timetable.appendChild(pmLabel);
+    
+    weekDates.forEach((date, dayIndex) => {
+        const cell = document.createElement('div');
+        cell.className = 'timetable-cell';
+        
+        const daySessions = sessionsByDay[dayIndex] || [];
+        const pmSessions = daySessions.filter(session => getTimeOfDay(session.startTime) === 'PM');
+        
+        pmSessions.forEach(session => {
+            const sessionBlock = createSessionBlock(session);
+            cell.appendChild(sessionBlock);
+            cell.classList.add('has-session');
+        });
+        
+        timetable.appendChild(cell);
     });
     
     timetableContainer.appendChild(timetable);
     timetableContainer.style.display = 'block';
+}
+
+function createSessionBlock(session) {
+    const sessionBlock = document.createElement('div');
+    sessionBlock.className = 'session-block';
+    
+    // Determine room class
+    const room = session.room.toLowerCase();
+    if (room.includes('practice')) {
+        sessionBlock.classList.add('practice-room');
+    } else if (room.includes('half')) {
+        sessionBlock.classList.add('half-hall');
+    }
+    
+    const sessionName = document.createElement('div');
+    sessionName.className = 'session-name';
+    sessionName.textContent = session.publicName;
+    
+    const sessionTime = document.createElement('div');
+    sessionTime.className = 'session-time';
+    sessionTime.textContent = session.startTime && session.endTime 
+        ? `${session.startTime} - ${session.endTime}` 
+        : session.startTime || '';
+    
+    const sessionRoom = document.createElement('div');
+    sessionRoom.className = 'session-room';
+    sessionRoom.textContent = session.room;
+    
+    sessionBlock.appendChild(sessionName);
+    sessionBlock.appendChild(sessionTime);
+    sessionBlock.appendChild(sessionRoom);
+    
+    return sessionBlock;
 }
 
 function showError(message) {
@@ -290,6 +318,30 @@ function showError(message) {
 }
 
 // ====================================
+// WEEK NAVIGATION
+// ====================================
+
+async function changeWeek(offset) {
+    currentWeekOffset += offset;
+    
+    // Show loading state
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('timetableContainer').style.display = 'none';
+    
+    // Get new week dates
+    const weekDates = getWeekDates(currentWeekOffset);
+    displayWeek(weekDates);
+    
+    // Fetch and display schedule
+    const sessions = await fetchScheduleData();
+    
+    if (sessions) {
+        document.getElementById('loadingState').style.display = 'none';
+        buildTimetable(sessions, weekDates);
+    }
+}
+
+// ====================================
 // INITIALIZATION
 // ====================================
 
@@ -301,7 +353,7 @@ async function init() {
     }
     
     // Get current week
-    const weekDates = getCurrentWeekDates();
+    const weekDates = getWeekDates(currentWeekOffset);
     displayWeek(weekDates);
     
     // Fetch and display schedule
@@ -315,3 +367,4 @@ async function init() {
 
 // Run when page loads
 document.addEventListener('DOMContentLoaded', init);
+
