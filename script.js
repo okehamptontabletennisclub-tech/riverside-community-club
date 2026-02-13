@@ -5,7 +5,7 @@
 // Replace this with your Google Sheet ID
 // To find it: Open your sheet, look at the URL
 // https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = '1mqqQIZvbGAO4546OGMPx4FoD2elEfLzmSbaZSFti3E8';
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
 
 // The name of your sheet tab (default is "Booking Calendar")
 const SHEET_NAME = 'Booking Calendar';
@@ -19,17 +19,13 @@ let currentWeekOffset = 0;
 
 async function fetchScheduleData() {
     try {
-        // Google Sheets API endpoint (no API key needed for public sheets)
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+        // Use the CSV export instead of the JSON API to avoid CSP issues
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
         
         const response = await fetch(url);
         const text = await response.text();
         
-        // Google returns JSONP, need to extract the JSON
-        const jsonString = text.substring(47).slice(0, -2);
-        const data = JSON.parse(jsonString);
-        
-        return parseSheetData(data);
+        return parseCSVData(text);
     } catch (error) {
         console.error('Error fetching schedule:', error);
         showError('Unable to load schedule. Please check your internet connection.');
@@ -37,72 +33,50 @@ async function fetchScheduleData() {
     }
 }
 
-function parseSheetData(data) {
-    const rows = data.table.rows;
+function parseCSVData(csvText) {
     const sessions = [];
+    const lines = csvText.split('\n');
     
     // Skip header row (index 0), start from row 1
-    for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const cells = row.c;
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
         
-        // Skip if row is empty or Show Online is not "Yes"
-        if (!cells || !cells[13] || cells[13].v !== 'Yes') {
+        // Parse CSV line (handling quoted fields)
+        const cells = parseCSVLine(line);
+        
+        // Skip if not enough columns or Show Online (column N, index 13) is not "Yes"
+        if (cells.length < 15 || cells[13] !== 'Yes') {
             continue;
         }
         
-        // Extract data from columns
-        // A=Date, B=Day, C=Start, D=End, E=Room, N=Show Online, O=Public Name
-        const dateCell = cells[0];
-        const dayCell = cells[1];
-        const startCell = cells[2];
-        const endCell = cells[3];
-        const roomCell = cells[4];
-        const publicNameCell = cells[14]; // Column O (index 14)
+        // Extract data: A=Date, B=Day, C=Start, D=End, E=Room, N=Show Online (13), O=Public Name (14)
+        const dateStr = cells[0];
+        const day = cells[1];
+        const startTime = cells[2];
+        const endTime = cells[3];
+        const room = cells[4];
+        const publicName = cells[14];
         
         // Skip if essential data is missing
-        if (!dateCell || !dayCell || !publicNameCell) {
+        if (!dateStr || !day || !publicName) {
             continue;
         }
         
-        // Parse the date
-        let date;
-        if (dateCell.v) {
-            // Google Sheets dates are in format "Date(2026,1,16)" or as formatted string
-            if (typeof dateCell.v === 'string' && dateCell.v.startsWith('Date(')) {
-                const match = dateCell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
-                if (match) {
-                    date = new Date(parseInt(match[1]), parseInt(match[2]), parseInt(match[3]));
-                }
-            } else if (dateCell.f) {
-                // Try formatted value
-                date = new Date(dateCell.f);
-            }
-        }
+        // Parse the date - Google Sheets CSV exports dates in various formats
+        let date = parseDate(dateStr);
         
         if (!date || isNaN(date.getTime())) {
             continue;
         }
         
-        // Parse time (can be decimal or formatted)
-        let startTime = '';
-        let endTime = '';
-        
-        if (startCell && startCell.v !== null) {
-            startTime = formatTime(startCell.v, startCell.f);
-        }
-        
-        if (endCell && endCell.v !== null) {
-            endTime = formatTime(endCell.v, endCell.f);
-        }
-        
         const session = {
             date: date,
-            day: dayCell.v || '',
-            startTime: startTime,
-            endTime: endTime,
-            room: roomCell ? roomCell.v : '',
-            publicName: publicNameCell ? publicNameCell.v : ''
+            day: day,
+            startTime: startTime || '',
+            endTime: endTime || '',
+            room: room || '',
+            publicName: publicName
         };
         
         sessions.push(session);
@@ -111,20 +85,60 @@ function parseSheetData(data) {
     return sessions;
 }
 
-function formatTime(value, formatted) {
-    // If we have formatted value, use it
-    if (formatted && formatted.includes(':')) {
-        return formatted;
+function parseCSVLine(line) {
+    const cells = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                // Escaped quote
+                current += '"';
+                i++;
+            } else {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            // End of cell
+            cells.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
     }
     
-    // If value is decimal (e.g., 0.4375 for 10:30)
-    if (typeof value === 'number') {
-        const hours = Math.floor(value * 24);
-        const minutes = Math.round((value * 24 - hours) * 60);
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    // Add last cell
+    cells.push(current.trim());
+    
+    return cells;
+}
+
+function parseDate(dateStr) {
+    // Try various date formats
+    
+    // Format: DD/MM/YYYY or D/M/YYYY
+    let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
     }
     
-    return value ? value.toString() : '';
+    // Format: YYYY-MM-DD
+    match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+    }
+    
+    // Format: Month DD, YYYY (e.g., "February 16, 2026")
+    const monthDate = new Date(dateStr);
+    if (!isNaN(monthDate.getTime())) {
+        return monthDate;
+    }
+    
+    return null;
 }
 
 function getWeekDates(weekOffset = 0) {
