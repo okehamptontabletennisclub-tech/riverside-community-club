@@ -195,7 +195,9 @@ function formatDateShort(date) {
 }
 
 function getTimeOfDay(timeStr) {
-    if (!timeStr) return null;
+    if (!timeStr || timeStr === '' || timeStr === 'Day') {
+        return 'FULL_DAY';
+    }
     
     const hour = parseInt(timeStr.split(':')[0]);
     
@@ -259,7 +261,11 @@ function buildTimetable(sessions, weekDates) {
         cell.className = 'timetable-cell';
         
         const daySessions = sessionsByDay[dayIndex] || [];
-        const amSessions = daySessions.filter(session => getTimeOfDay(session.startTime) === 'AM');
+        // Include AM sessions and full-day events
+        const amSessions = daySessions.filter(session => {
+            const timeOfDay = getTimeOfDay(session.startTime);
+            return timeOfDay === 'AM' || timeOfDay === 'FULL_DAY';
+        });
         
         amSessions.forEach(session => {
             const sessionBlock = createSessionBlock(session);
@@ -281,7 +287,11 @@ function buildTimetable(sessions, weekDates) {
         cell.className = 'timetable-cell';
         
         const daySessions = sessionsByDay[dayIndex] || [];
-        const pmSessions = daySessions.filter(session => getTimeOfDay(session.startTime) === 'PM');
+        // Include PM sessions (full-day events already shown in AM)
+        const pmSessions = daySessions.filter(session => {
+            const timeOfDay = getTimeOfDay(session.startTime);
+            return timeOfDay === 'PM';
+        });
         
         pmSessions.forEach(session => {
             const sessionBlock = createSessionBlock(session);
@@ -300,12 +310,29 @@ function createSessionBlock(session) {
     const sessionBlock = document.createElement('div');
     sessionBlock.className = 'session-block';
     
-    // Determine room class
-    const room = session.room.toLowerCase();
-    if (room.includes('practice')) {
-        sessionBlock.classList.add('practice-room');
-    } else if (room.includes('half')) {
-        sessionBlock.classList.add('half-hall');
+    // Determine activity class based on Public Name
+    const publicName = session.publicName.toLowerCase();
+    
+    if (publicName.includes('table tennis') || publicName.includes('tt ')) {
+        sessionBlock.classList.add('table-tennis');
+    } else if (publicName.includes('pickleball')) {
+        sessionBlock.classList.add('pickleball');
+    } else if (publicName.includes('yoga')) {
+        sessionBlock.classList.add('yoga');
+    } else if (publicName.includes('taekwondo')) {
+        sessionBlock.classList.add('taekwondo');
+    } else if (publicName.includes('cheerleading')) {
+        sessionBlock.classList.add('cheerleading');
+    } else if (publicName.includes('footsteps')) {
+        sessionBlock.classList.add('footsteps');
+    } else if (publicName.includes('tournament') || publicName.includes('edttl') || publicName.includes('tte ')) {
+        sessionBlock.classList.add('tournament');
+    }
+    
+    // Check if it's a full-day event
+    const isFullDay = session.startTime === 'Day' || session.startTime === '';
+    if (isFullDay) {
+        sessionBlock.classList.add('full-day');
     }
     
     const sessionName = document.createElement('div');
@@ -314,9 +341,14 @@ function createSessionBlock(session) {
     
     const sessionTime = document.createElement('div');
     sessionTime.className = 'session-time';
-    sessionTime.textContent = session.startTime && session.endTime 
-        ? `${session.startTime} - ${session.endTime}` 
-        : session.startTime || '';
+    
+    if (isFullDay) {
+        sessionTime.textContent = 'All Day';
+    } else {
+        sessionTime.textContent = session.startTime && session.endTime 
+            ? `${session.startTime} - ${session.endTime}` 
+            : session.startTime || '';
+    }
     
     const sessionRoom = document.createElement('div');
     sessionRoom.className = 'session-room';
@@ -324,7 +356,9 @@ function createSessionBlock(session) {
     
     sessionBlock.appendChild(sessionName);
     sessionBlock.appendChild(sessionTime);
-    sessionBlock.appendChild(sessionRoom);
+    if (session.room) {
+        sessionBlock.appendChild(sessionRoom);
+    }
     
     return sessionBlock;
 }

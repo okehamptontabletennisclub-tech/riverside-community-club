@@ -6,9 +6,15 @@
     --color-light: #f8f9fa;
     --color-mid: #e0e1dd;
     
-    --hall-color: #4a90e2;
-    --practice-color: #e24a90;
-    --half-hall-color: #9b59b6;
+    /* Activity colors */
+    --tt-color: #4a90e2;
+    --pickleball-color: #e24a90;
+    --yoga-color: #9b59b6;
+    --taekwondo-color: #e67e22;
+    --cheerleading-color: #e74c3c;
+    --footsteps-color: #27ae60;
+    --tournament-color: #f39c12;
+    --default-color: #95a5a6;
     
     --font-display: 'Archivo', sans-serif;
     --font-body: 'Work Sans', sans-serif;
@@ -214,6 +220,19 @@ body {
     color: #555;
     line-height: 1.6;
     margin-bottom: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.notice-content a {
+    color: var(--color-primary);
+    text-decoration: none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.notice-content a:hover {
+    text-decoration: underline;
 }
 
 .notice-button {
@@ -393,7 +412,7 @@ body {
 }
 
 .session-block {
-    background: linear-gradient(135deg, var(--hall-color) 0%, #5ca7eb 100%);
+    background: linear-gradient(135deg, var(--default-color) 0%, #a8b8ba 100%);
     color: white;
     padding: 0.75rem;
     border-radius: 8px;
@@ -408,12 +427,38 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.session-block.practice-room {
-    background: linear-gradient(135deg, var(--practice-color) 0%, #e87aaa 100%);
+/* Activity-based colors */
+.session-block.table-tennis {
+    background: linear-gradient(135deg, var(--tt-color) 0%, #5ca7eb 100%);
 }
 
-.session-block.half-hall {
-    background: linear-gradient(135deg, var(--half-hall-color) 0%, #af70c6 100%);
+.session-block.pickleball {
+    background: linear-gradient(135deg, var(--pickleball-color) 0%, #e87aaa 100%);
+}
+
+.session-block.yoga {
+    background: linear-gradient(135deg, var(--yoga-color) 0%, #af70c6 100%);
+}
+
+.session-block.taekwondo {
+    background: linear-gradient(135deg, var(--taekwondo-color) 0%, #f39c12 100%);
+}
+
+.session-block.cheerleading {
+    background: linear-gradient(135deg, var(--cheerleading-color) 0%, #e8635e 100%);
+}
+
+.session-block.footsteps {
+    background: linear-gradient(135deg, var(--footsteps-color) 0%, #2ecc71 100%);
+}
+
+.session-block.tournament {
+    background: linear-gradient(135deg, var(--tournament-color) 0%, #f1c40f 100%);
+}
+
+.session-block.full-day {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    border-left: 4px solid var(--color-secondary);
 }
 
 .session-name {
@@ -474,16 +519,32 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.legend-color.hall {
-    background: linear-gradient(135deg, var(--hall-color) 0%, #5ca7eb 100%);
+.legend-color.table-tennis {
+    background: linear-gradient(135deg, var(--tt-color) 0%, #5ca7eb 100%);
 }
 
-.legend-color.practice {
-    background: linear-gradient(135deg, var(--practice-color) 0%, #e87aaa 100%);
+.legend-color.pickleball {
+    background: linear-gradient(135deg, var(--pickleball-color) 0%, #e87aaa 100%);
 }
 
-.legend-color.half-hall {
-    background: linear-gradient(135deg, var(--half-hall-color) 0%, #af70c6 100%);
+.legend-color.yoga {
+    background: linear-gradient(135deg, var(--yoga-color) 0%, #af70c6 100%);
+}
+
+.legend-color.taekwondo {
+    background: linear-gradient(135deg, var(--taekwondo-color) 0%, #f39c12 100%);
+}
+
+.legend-color.cheerleading {
+    background: linear-gradient(135deg, var(--cheerleading-color) 0%, #e8635e 100%);
+}
+
+.legend-color.footsteps {
+    background: linear-gradient(135deg, var(--footsteps-color) 0%, #2ecc71 100%);
+}
+
+.legend-color.tournament {
+    background: linear-gradient(135deg, var(--tournament-color) 0%, #f1c40f 100%);
 }
 
 /* Footer */
