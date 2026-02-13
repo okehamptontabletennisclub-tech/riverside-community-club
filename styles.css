@@ -222,6 +222,7 @@ body {
     margin-bottom: 1rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .notice-content a {
@@ -229,6 +230,9 @@ body {
     text-decoration: none;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    word-break: break-all;
+    display: inline-block;
+    max-width: 100%;
 }
 
 .notice-content a:hover {
