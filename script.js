@@ -120,8 +120,19 @@ function parseCSVLine(line) {
 function parseDate(dateStr) {
     // Try various date formats
     
+    // Format: D/M/YY or DD/MM/YY (e.g., "1/9/25" or "16/2/26")
+    let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+    if (match) {
+        let day = parseInt(match[1]);
+        let month = parseInt(match[2]) - 1; // JS months are 0-indexed
+        let year = parseInt(match[3]);
+        // Convert 2-digit year to 4-digit (25 = 2025, 26 = 2026)
+        year = year < 50 ? 2000 + year : 1900 + year;
+        return new Date(year, month, day);
+    }
+    
     // Format: DD/MM/YYYY or D/M/YYYY
-    let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (match) {
         return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
     }
