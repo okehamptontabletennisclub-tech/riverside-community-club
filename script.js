@@ -5,7 +5,7 @@
 // Replace this with your Google Sheet ID
 // To find it: Open your sheet, look at the URL
 // https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = '1mqqQIZvbGAO4546OGMPx4FoD2elEfLzmSbaZSFti3E8';
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
 
 // The name of your sheet tab (default is "Booking Calendar")
 const SHEET_NAME = 'Booking Calendar';
@@ -19,8 +19,8 @@ let currentWeekOffset = 0;
 
 async function fetchScheduleData() {
     try {
-        // Use the CSV export instead of the JSON API to avoid CSP issues
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+        // Use the published CSV URL directly
+        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=1160486297&single=true&output=csv';
         
         const response = await fetch(url);
         const text = await response.text();
@@ -405,12 +405,6 @@ async function changeWeek(offset) {
 // ====================================
 
 async function init() {
-    // Check if Sheet ID is configured
-    if (SHEET_ID === 'YOUR_SHEET_ID_HERE') {
-        showError('Please configure your Google Sheet ID in script.js');
-        return;
-    }
-    
     // Get current week
     const weekDates = getWeekDates(currentWeekOffset);
     displayWeek(weekDates);
