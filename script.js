@@ -338,6 +338,8 @@ function createSessionBlock(session) {
         sessionBlock.classList.add('cheerleading');
     } else if (publicName.includes('footsteps')) {
         sessionBlock.classList.add('footsteps');
+    } else if (publicName.includes('SMB')) {
+        sessionBlock.classList.add('SMB');
     } else if (publicName.includes('tournament') || publicName.includes('edttl') || publicName.includes('tte ')) {
         sessionBlock.classList.add('tournament');
     }
