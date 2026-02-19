@@ -16,7 +16,7 @@ let currentWeekOffset = 0;
 async function fetchScheduleData() {
     try {
         // Use the published CSV URL directly
-        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=659243841&single=true&output=csv';
+        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=1160486297&single=true&output=csv';
         
         const response = await fetch(url);
         const text = await response.text();
@@ -46,7 +46,7 @@ function parseCSVData(csvText) {
         
         // New column positions:
         // A=Date(0), B=Day(1), C=Start(2), D=End(3), E=Room(4), F=Hirer(5), G=Contact(6), 
-        // H=Session Type(7), I=Public Name(8), J=Show Online(9), K=Contact Email(10)
+        // H=Session Type(7), I=Public Name(8), J=Show Online(9), K=Contact Email(10), L=Notes(11)
         
         // Skip if not enough columns or Show Online is not "Yes"
         // Treat blank/empty as "No"
@@ -63,6 +63,7 @@ function parseCSVData(csvText) {
         const publicName = cells[8];  // Column I
         const sessionType = cells[7];  // Column H
         const contactEmail = cells[10] || '';  // Column K
+        const notes = cells[11] || '';  // Column L
         
         // Skip if room is not one of the valid rooms
         if (!room || !validRooms.includes(room.toLowerCase().trim())) {
@@ -89,7 +90,8 @@ function parseCSVData(csvText) {
             room: room || '',
             publicName: publicName,
             sessionType: sessionType || '',
-            contactEmail: contactEmail
+            contactEmail: contactEmail,
+            notes: notes
         };
         
         sessions.push(session);
@@ -323,6 +325,10 @@ function createSessionBlock(session) {
     const sessionBlock = document.createElement('div');
     sessionBlock.className = 'session-block';
     
+    // Make it clickable
+    sessionBlock.style.cursor = 'pointer';
+    sessionBlock.onclick = () => showSessionDetails(session);
+    
     // Determine activity class based on Public Name
     const publicName = session.publicName.toLowerCase();
     
@@ -438,6 +444,59 @@ async function changeWeek(offset) {
 }
 
 // ====================================
+// MODAL FUNCTIONS
+// ====================================
+
+// Show session details modal
+function showSessionDetails(session) {
+    const modal = document.getElementById('sessionModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalBody');
+    
+    // Set title
+    title.textContent = session.publicName;
+    
+    // Build body content
+    let html = '';
+    
+    // Time and date
+    const isFullDay = session.startTime === 'Day' || session.startTime === '';
+    if (isFullDay) {
+        html += `<p><strong>When:</strong> ${session.day} - All Day</p>`;
+    } else {
+        const timeStr = session.startTime && session.endTime 
+            ? `${session.startTime} - ${session.endTime}` 
+            : session.startTime || '';
+        html += `<p><strong>When:</strong> ${session.day}, ${timeStr}</p>`;
+    }
+    
+    // Room
+    if (session.room) {
+        html += `<p><strong>Location:</strong> ${session.room}</p>`;
+    }
+    
+    // Session type
+    if (session.sessionType) {
+        html += `<p><strong>Type:</strong> ${session.sessionType}</p>`;
+    }
+    
+    // Contact email
+    if (session.contactEmail && session.contactEmail.trim()) {
+        html += `<p><strong>Contact:</strong> <a href="mailto:${session.contactEmail}">${session.contactEmail}</a></p>`;
+    }
+    
+    // Notes
+    if (session.notes && session.notes.trim()) {
+        html += `<p><strong>Details:</strong><br>${session.notes}</p>`;
+    }
+    
+    body.innerHTML = html;
+    
+    // Show modal
+    modal.classList.add('active');
+}
+
+// ====================================
 // INITIALIZATION
 // ====================================
 
@@ -457,4 +516,29 @@ async function init() {
 
 // Run when page loads
 document.addEventListener('DOMContentLoaded', init);
+
+// Setup modal close handlers
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('sessionModal');
+    const closeBtn = document.getElementById('modalClose');
+    
+    // Close on X button
+    closeBtn.onclick = () => {
+        modal.classList.remove('active');
+    };
+    
+    // Close on outside click
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    };
+    
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            modal.classList.remove('active');
+        }
+    });
+});
 
