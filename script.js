@@ -16,7 +16,7 @@ let currentWeekOffset = 0;
 async function fetchScheduleData() {
     try {
         // Use the published CSV URL directly
-        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=659243841&single=true&output=csv';
+        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=1160486297&single=true&output=csv';
         
         const response = await fetch(url);
         const text = await response.text();
@@ -32,6 +32,9 @@ async function fetchScheduleData() {
 function parseCSVData(csvText) {
     const sessions = [];
     const lines = csvText.split('\n');
+    
+    // Valid rooms to display
+    const validRooms = ['hall', 'half hall', 'practice room'];
     
     // Skip header row (index 0), start from row 1
     for (let i = 1; i < lines.length; i++) {
@@ -60,6 +63,11 @@ function parseCSVData(csvText) {
         const publicName = cells[8];  // Column I
         const sessionType = cells[7];  // Column H
         const contactEmail = cells[10] || '';  // Column K
+        
+        // Skip if room is not one of the valid rooms
+        if (!room || !validRooms.includes(room.toLowerCase().trim())) {
+            continue;
+        }
         
         // Skip if essential data is missing
         if (!dateStr || !day || !publicName) {
