@@ -2,13 +2,9 @@
 // CONFIGURATION
 // ====================================
 
-// Replace this with your Google Sheet ID
-// To find it: Open your sheet, look at the URL
-// https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = '1mqqQIZvbGAO4546OGMPx4FoD2elEfLzmSbaZSFti3E8';
-
-// The name of your sheet tab (default is "Booking Calendar")
-const SHEET_NAME = 'Public Calendar';
+// IMPORTANT: Replace the URL below (line 10) with your published Public Calendar CSV link
+// To get it: File → Share → Publish to web → Select "Public Calendar" tab → CSV format
+// The URL should end with: &output=csv
 
 // Global state for current week offset
 let currentWeekOffset = 0;
@@ -20,7 +16,7 @@ let currentWeekOffset = 0;
 async function fetchScheduleData() {
     try {
         // Use the published CSV URL directly
-        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=659243841&single=true&output=csv;
+        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=1160486297&single=true&output=csv';
         
         const response = await fetch(url);
         const text = await response.text();
