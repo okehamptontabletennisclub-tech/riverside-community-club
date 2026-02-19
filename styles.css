@@ -14,6 +14,7 @@
     --cheerleading-color: #e74c3c;
     --footsteps-color: #27ae60;
     --tournament-color: #f39c12;
+    --SMB-colour: #3498db;
     --default-color: #95a5a6;
     
     --font-display: 'Archivo', sans-serif;
@@ -457,6 +458,9 @@ body {
 
 .session-block.footsteps {
     background: linear-gradient(135deg, var(--footsteps-color) 0%, #2ecc71 100%);
+}
+.session-SMB {
+    background: linear-gradient(135deg, var(--SMB-color) 0%, #5dade2 100%);
 }
 
 .session-block.tournament {
