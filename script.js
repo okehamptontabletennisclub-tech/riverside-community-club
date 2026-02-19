@@ -5,7 +5,7 @@
 // Replace this with your Google Sheet ID
 // To find it: Open your sheet, look at the URL
 // https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
-const SHEET_ID = '1mqqQIZvbGAO4546OGMPx4FoD2elEfLzmSbaZSFti3E8';
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
 
 // The name of your sheet tab (default is "Booking Calendar")
 const SHEET_NAME = 'Booking Calendar';
@@ -45,25 +45,32 @@ function parseCSVData(csvText) {
         // Parse CSV line (handling quoted fields)
         const cells = parseCSVLine(line);
         
-        // Skip if not enough columns or Show Online (column N, index 13) is not "Yes"
-        if (cells.length < 15 || cells[13] !== 'Yes') {
+        // New column positions:
+        // A=Date(0), B=Day(1), C=Start(2), D=End(3), E=Room(4), F=Hirer(5), G=Contact(6), 
+        // H=Session Type(7), I=Public Name(8), J=Show Online(9), K=Contact Email(10)
+        
+        // Skip if not enough columns or Show Online is not "Yes"
+        // Treat blank/empty as "No"
+        if (cells.length < 10 || cells[9].trim() !== 'Yes') {
             continue;
         }
         
-        // Extract data: A=Date, B=Day, C=Start, D=End, E=Room, N=Show Online (13), O=Public Name (14)
+        // Extract data
         const dateStr = cells[0];
         const day = cells[1];
         const startTime = cells[2];
         const endTime = cells[3];
         const room = cells[4];
-        const publicName = cells[14];
+        const publicName = cells[8];  // Column I
+        const sessionType = cells[7];  // Column H
+        const contactEmail = cells[10] || '';  // Column K
         
         // Skip if essential data is missing
         if (!dateStr || !day || !publicName) {
             continue;
         }
         
-        // Parse the date - Google Sheets CSV exports dates in various formats
+        // Parse the date
         let date = parseDate(dateStr);
         
         if (!date || isNaN(date.getTime())) {
@@ -76,7 +83,9 @@ function parseCSVData(csvText) {
             startTime: startTime || '',
             endTime: endTime || '',
             room: room || '',
-            publicName: publicName
+            publicName: publicName,
+            sessionType: sessionType || '',
+            contactEmail: contactEmail
         };
         
         sessions.push(session);
@@ -329,6 +338,14 @@ function createSessionBlock(session) {
         sessionBlock.classList.add('tournament');
     }
     
+    // Add session type class for styling
+    const sessionType = session.sessionType.toLowerCase();
+    if (sessionType.includes('private')) {
+        sessionBlock.classList.add('private-session');
+    } else if (sessionType.includes('members')) {
+        sessionBlock.classList.add('members-only');
+    }
+    
     // Check if it's a full-day event
     const isFullDay = session.startTime === 'Day' || session.startTime === '';
     if (isFullDay) {
@@ -338,6 +355,14 @@ function createSessionBlock(session) {
     const sessionName = document.createElement('div');
     sessionName.className = 'session-name';
     sessionName.textContent = session.publicName;
+    
+    // Add session type badge if it's private or members only
+    if (sessionType.includes('private') || sessionType.includes('members')) {
+        const badge = document.createElement('span');
+        badge.className = 'session-badge';
+        badge.textContent = sessionType.includes('private') ? 'Private' : 'Members';
+        sessionName.appendChild(badge);
+    }
     
     const sessionTime = document.createElement('div');
     sessionTime.className = 'session-time';
@@ -359,6 +384,14 @@ function createSessionBlock(session) {
     if (session.room) {
         sessionBlock.appendChild(sessionRoom);
     }
+    
+    // Optionally add contact email (uncomment if you want to show it)
+    // if (session.contactEmail && session.contactEmail.trim()) {
+    //     const contactDiv = document.createElement('div');
+    //     contactDiv.className = 'session-contact';
+    //     contactDiv.textContent = session.contactEmail;
+    //     sessionBlock.appendChild(contactDiv);
+    // }
     
     return sessionBlock;
 }
