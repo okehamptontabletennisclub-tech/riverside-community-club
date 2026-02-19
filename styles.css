@@ -576,7 +576,9 @@ body {
 .legend-color.footsteps {
     background: linear-gradient(135deg, var(--footsteps-color) 0%, #2ecc71 100%);
 }
-
+.legend-color.SMB {
+    background: linear-gradient(135deg, var(--SMB-color) 0%, #5dade2 100%);
+}
 .legend-color.tournament {
     background: linear-gradient(135deg, var(--tournament-color) 0%, #f1c40f 100%);
 }
