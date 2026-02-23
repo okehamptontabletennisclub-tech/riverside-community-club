@@ -33,6 +33,12 @@ function parseCSVData(csvText) {
     const sessions = [];
     const lines = csvText.split('\n');
     
+    console.log('Total lines in CSV:', lines.length);
+    console.log('First line (header):', lines[0]);
+    if (lines.length > 1) {
+        console.log('Second line (first data row):', lines[1]);
+    }
+    
     // Valid rooms to display
     const validRooms = ['hall', 'half hall', 'practice room'];
     
@@ -44,6 +50,13 @@ function parseCSVData(csvText) {
         // Parse CSV line (handling quoted fields)
         const cells = parseCSVLine(line);
         
+        // Debug: log first row
+        if (i === 1) {
+            console.log('Parsed cells from first row:', cells);
+            console.log('Number of cells:', cells.length);
+            console.log('Cell[9] (Show Online):', cells[9]);
+        }
+        
         // New column positions:
         // A=Date(0), B=Day(1), C=Start(2), D=End(3), E=Room(4), F=Hirer(5), G=Contact(6), 
         // H=Session Type(7), I=Public Name(8), J=Show Online(9), K=Contact Email(10)
@@ -51,6 +64,9 @@ function parseCSVData(csvText) {
         // Skip if not enough columns or Show Online is not "Yes"
         // Treat blank/empty as "No"
         if (cells.length < 10 || cells[9].trim() !== 'Yes') {
+            if (i <= 3) {
+                console.log(`Row ${i} skipped. Cells: ${cells.length}, Show Online: "${cells[9]}"`);
+            }
             continue;
         }
         
@@ -66,11 +82,17 @@ function parseCSVData(csvText) {
         
         // Skip if room is not one of the valid rooms
         if (!room || !validRooms.includes(room.toLowerCase().trim())) {
+            if (i <= 3) {
+                console.log(`Row ${i} skipped - invalid room: "${room}"`);
+            }
             continue;
         }
         
         // Skip if essential data is missing
         if (!dateStr || !day || !publicName) {
+            if (i <= 3) {
+                console.log(`Row ${i} skipped - missing data. Date: "${dateStr}", Day: "${day}", Name: "${publicName}"`);
+            }
             continue;
         }
         
@@ -78,6 +100,9 @@ function parseCSVData(csvText) {
         let date = parseDate(dateStr);
         
         if (!date || isNaN(date.getTime())) {
+            if (i <= 3) {
+                console.log(`Row ${i} skipped - invalid date: "${dateStr}"`);
+            }
             continue;
         }
         
@@ -93,6 +118,11 @@ function parseCSVData(csvText) {
         };
         
         sessions.push(session);
+    }
+    
+    console.log('Total sessions found:', sessions.length);
+    if (sessions.length > 0) {
+        console.log('First session:', sessions[0]);
     }
     
     return sessions;
