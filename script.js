@@ -2,126 +2,82 @@
 // CONFIGURATION
 // ====================================
 
-// IMPORTANT: Replace the URL below (line 10) with your published Public Calendar CSV link
-// To get it: File → Share → Publish to web → Select "Public Calendar" tab → CSV format
-// The URL should end with: &output=csv
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=659243841&single=true&output=csv';
 
-// Global state for current week offset
 let currentWeekOffset = 0;
 
 // ====================================
-// MAIN FUNCTIONS
+// FETCH AND PARSE DATA
 // ====================================
 
 async function fetchScheduleData() {
     try {
-        // Use the published CSV URL directly
-        const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQss-tRShihUJUQbVxBXY60U4B3PqXO8ZmWMFb1PHyELW7XkbIDyk4XtJDpsl3ezoC6Ro8VtuMZozUM/pub?gid=659243841&single=true&output=csv';
-        
-        const response = await fetch(url);
+        console.log('Fetching from:', SHEET_URL);
+        const response = await fetch(SHEET_URL);
         const text = await response.text();
+        console.log('CSV fetched, length:', text.length);
+        console.log('First 500 chars:', text.substring(0, 500));
         
-        return parseCSVData(text);
+        return parseCSV(text);
     } catch (error) {
-        console.error('Error fetching schedule:', error);
-        showError('Unable to load schedule. Please check your internet connection.');
+        console.error('Fetch error:', error);
         return null;
     }
 }
 
-function parseCSVData(csvText) {
-    const sessions = [];
+function parseCSV(csvText) {
     const lines = csvText.split('\n');
+    const sessions = [];
     
-    console.log('Total lines in CSV:', lines.length);
-    console.log('First line (header):', lines[0]);
-    if (lines.length > 1) {
-        console.log('Second line (first data row):', lines[1]);
-    }
+    console.log('Total lines:', lines.length);
+    console.log('Header:', lines[0]);
     
-    // Valid rooms to display
-    const validRooms = ['hall', 'half hall', 'practice room'];
-    
-    // Skip header row (index 0), start from row 1
+    // Skip header (line 0)
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        // Parse CSV line (handling quoted fields)
-        const cells = parseCSVLine(line);
+        const cells = splitCSVLine(line);
         
-        // Debug: log first row
-        if (i === 1) {
-            console.log('Parsed cells from first row:', cells);
-            console.log('Number of cells:', cells.length);
-            console.log('Cell[9] (Show Online):', cells[9]);
+        // Log first few rows for debugging
+        if (i <= 3) {
+            console.log(`Row ${i}:`, cells);
         }
         
-        // New column positions:
-        // A=Date(0), B=Day(1), C=Start(2), D=End(3), E=Room(4), F=Hirer(5), G=Contact(6), 
-        // H=Session Type(7), I=Public Name(8), J=Show Online(9), K=Contact Email(10)
+        // Expected columns:
+        // 0=Date, 1=Day, 2=Start, 3=End, 4=Room, 5=Hirer, 6=Contact,
+        // 7=Session Type, 8=Public Name, 9=Show Online, 10=Contact Email, 11=Notes
         
-        // Skip if not enough columns or Show Online is not "Yes"
-        // Treat blank/empty as "No"
-        const showOnline = (cells[9] || '').toString().trim().toLowerCase();
-        if (cells.length < 10 || showOnline !== 'yes') {
-            if (i <= 3) {
-                console.log(`Row ${i} skipped. Cells: ${cells.length}, Show Online: "${cells[9]}" (cleaned: "${showOnline}")`);
-            }
-            continue;
-        }
+        if (cells.length < 10) continue;
         
-        // Extract data
+        const showOnline = (cells[9] || '').trim().toLowerCase();
+        if (showOnline !== 'yes') continue;
+        
+        const room = (cells[4] || '').trim().toLowerCase();
+        const validRooms = ['hall', 'half hall', 'practice room'];
+        if (!validRooms.includes(room)) continue;
+        
         const dateStr = cells[0];
-        const day = cells[1];
-        const startTime = cells[2];
-        const endTime = cells[3];
-        const room = cells[4];
-        const publicName = cells[8];  // Column I
-        const sessionType = cells[7];  // Column H
-        const contactEmail = cells[10] || '';  // Column K
+        const date = parseDate(dateStr);
+        if (!date) continue;
         
-        // Skip if room is not one of the valid rooms
-        if (!room || !validRooms.includes(room.toLowerCase().trim())) {
-            if (i <= 3) {
-                console.log(`Row ${i} skipped - invalid room: "${room}"`);
-            }
-            continue;
-        }
+        const publicName = cells[8];
+        if (!publicName || !publicName.trim()) continue;
         
-        // Skip if essential data is missing
-        if (!dateStr || !day || !publicName) {
-            if (i <= 3) {
-                console.log(`Row ${i} skipped - missing data. Date: "${dateStr}", Day: "${day}", Name: "${publicName}"`);
-            }
-            continue;
-        }
-        
-        // Parse the date
-        let date = parseDate(dateStr);
-        
-        if (!date || isNaN(date.getTime())) {
-            if (i <= 3) {
-                console.log(`Row ${i} skipped - invalid date: "${dateStr}"`);
-            }
-            continue;
-        }
-        
-        const session = {
+        sessions.push({
             date: date,
-            day: day,
-            startTime: startTime || '',
-            endTime: endTime || '',
-            room: room || '',
+            day: cells[1] || '',
+            startTime: cells[2] || '',
+            endTime: cells[3] || '',
+            room: cells[4] || '',
             publicName: publicName,
-            sessionType: sessionType || '',
-            contactEmail: contactEmail
-        };
-        
-        sessions.push(session);
+            sessionType: cells[7] || '',
+            contactEmail: cells[10] || '',
+            notes: cells[11] || ''
+        });
     }
     
-    console.log('Total sessions found:', sessions.length);
+    console.log('Sessions found:', sessions.length);
     if (sessions.length > 0) {
         console.log('First session:', sessions[0]);
     }
@@ -129,7 +85,7 @@ function parseCSVData(csvText) {
     return sessions;
 }
 
-function parseCSVLine(line) {
+function splitCSVLine(line) {
     const cells = [];
     let current = '';
     let inQuotes = false;
@@ -139,77 +95,63 @@ function parseCSVLine(line) {
         
         if (char === '"') {
             if (inQuotes && line[i + 1] === '"') {
-                // Escaped quote
                 current += '"';
                 i++;
             } else {
-                // Toggle quote mode
                 inQuotes = !inQuotes;
             }
         } else if (char === ',' && !inQuotes) {
-            // End of cell
-            cells.push(current.trim());
+            cells.push(current);
             current = '';
         } else {
             current += char;
         }
     }
     
-    // Add last cell
-    cells.push(current.trim());
-    
+    cells.push(current);
     return cells;
 }
 
 function parseDate(dateStr) {
-    // Try various date formats
+    if (!dateStr) return null;
     
-    // Format: D/M/YY or DD/MM/YY (e.g., "1/9/25" or "16/2/26")
+    // Try D/M/YY format
     let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
     if (match) {
-        let day = parseInt(match[1]);
-        let month = parseInt(match[2]) - 1; // JS months are 0-indexed
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]) - 1;
         let year = parseInt(match[3]);
-        // Convert 2-digit year to 4-digit (25 = 2025, 26 = 2026)
         year = year < 50 ? 2000 + year : 1900 + year;
         return new Date(year, month, day);
     }
     
-    // Format: DD/MM/YYYY or D/M/YYYY
+    // Try D/M/YYYY format
     match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (match) {
-        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]) - 1;
+        const year = parseInt(match[3]);
+        return new Date(year, month, day);
     }
     
-    // Format: YYYY-MM-DD
-    match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (match) {
-        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
-    }
-    
-    // Format: Month DD, YYYY (e.g., "February 16, 2026")
-    const monthDate = new Date(dateStr);
-    if (!isNaN(monthDate.getTime())) {
-        return monthDate;
-    }
-    
-    return null;
+    // Try parsing directly
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
 }
+
+// ====================================
+// DISPLAY FUNCTIONS
+// ====================================
 
 function getWeekDates(weekOffset = 0) {
     const today = new Date();
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    // Calculate Monday of current week
+    const currentDay = today.getDay();
     const monday = new Date(today);
     const dayOffset = currentDay === 0 ? -6 : 1 - currentDay;
     monday.setDate(today.getDate() + dayOffset);
     monday.setHours(0, 0, 0, 0);
-    
-    // Add week offset
     monday.setDate(monday.getDate() + (weekOffset * 7));
     
-    // Generate all 7 days
     const weekDates = [];
     for (let i = 0; i < 7; i++) {
         const date = new Date(monday);
@@ -224,11 +166,10 @@ function displayWeek(weekDates) {
     const start = formatDateShort(weekDates[0]);
     const end = formatDateShort(weekDates[6]);
     
-    const weekDisplay = document.getElementById('weekDisplay');
-    weekDisplay.innerHTML = `
-        <button class="week-nav-btn" id="prevWeek" onclick="changeWeek(-1)">←</button>
+    document.getElementById('weekDisplay').innerHTML = `
+        <button class="week-nav-btn" onclick="changeWeek(-1)">←</button>
         <span class="week-text">Week of ${start} - ${end}</span>
-        <button class="week-nav-btn" id="nextWeek" onclick="changeWeek(1)">→</button>
+        <button class="week-nav-btn" onclick="changeWeek(1)">→</button>
     `;
 }
 
@@ -238,246 +179,190 @@ function formatDateShort(date) {
     return `${day} ${month}`;
 }
 
-function getTimeOfDay(timeStr) {
-    if (!timeStr || timeStr === '' || timeStr === 'Day') {
-        return 'FULL_DAY';
-    }
-    
-    const hour = parseInt(timeStr.split(':')[0]);
-    
-    if (hour < 12) {
-        return 'AM';
-    } else {
-        return 'PM';
-    }
-}
-
 function buildTimetable(sessions, weekDates) {
-    // Group sessions by day
     const sessionsByDay = {};
     weekDates.forEach((date, index) => {
-        const dateKey = date.toDateString();
-        sessionsByDay[index] = sessions.filter(session => 
-            session.date.toDateString() === dateKey
+        sessionsByDay[index] = sessions.filter(s => 
+            s.date.toDateString() === date.toDateString()
         );
     });
     
-    const timetableContainer = document.getElementById('timetableContainer');
-    timetableContainer.innerHTML = '';
+    const container = document.getElementById('timetableContainer');
+    container.innerHTML = '';
     
-    const timetable = document.createElement('div');
-    timetable.className = 'timetable';
+    const table = document.createElement('div');
+    table.className = 'timetable';
     
-    // Header row
-    // Time column header
-    const timeHeader = document.createElement('div');
-    timeHeader.className = 'timetable-header time-col';
-    timeHeader.textContent = 'Time';
-    timetable.appendChild(timeHeader);
-    
-    // Day headers
+    // Headers
+    table.appendChild(createHeader('Time', 'time-col'));
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    weekDates.forEach((date, index) => {
-        const dayHeader = document.createElement('div');
-        dayHeader.className = 'timetable-header day-header';
-        
-        const dayName = document.createElement('div');
-        dayName.className = 'day-name';
-        dayName.textContent = dayNames[index];
-        
-        const dayDate = document.createElement('div');
-        dayDate.className = 'day-date';
-        dayDate.textContent = formatDateShort(date);
-        
-        dayHeader.appendChild(dayName);
-        dayHeader.appendChild(dayDate);
-        timetable.appendChild(dayHeader);
+    weekDates.forEach((date, i) => {
+        const header = document.createElement('div');
+        header.className = 'timetable-header day-header';
+        header.innerHTML = `
+            <div class="day-name">${dayNames[i]}</div>
+            <div class="day-date">${formatDateShort(date)}</div>
+        `;
+        table.appendChild(header);
     });
     
     // AM Row
-    const amLabel = document.createElement('div');
-    amLabel.className = 'time-slot';
-    amLabel.textContent = 'AM';
-    timetable.appendChild(amLabel);
-    
+    table.appendChild(createTimeLabel('AM'));
     weekDates.forEach((date, dayIndex) => {
-        const cell = document.createElement('div');
-        cell.className = 'timetable-cell';
-        
-        const daySessions = sessionsByDay[dayIndex] || [];
-        // Include AM sessions and full-day events
-        const amSessions = daySessions.filter(session => {
-            const timeOfDay = getTimeOfDay(session.startTime);
-            return timeOfDay === 'AM' || timeOfDay === 'FULL_DAY';
-        });
-        
-        amSessions.forEach(session => {
-            const sessionBlock = createSessionBlock(session);
-            cell.appendChild(sessionBlock);
-            cell.classList.add('has-session');
-        });
-        
-        timetable.appendChild(cell);
+        const cell = createCell(sessionsByDay[dayIndex], 'AM');
+        table.appendChild(cell);
     });
     
     // PM Row
-    const pmLabel = document.createElement('div');
-    pmLabel.className = 'time-slot';
-    pmLabel.textContent = 'PM';
-    timetable.appendChild(pmLabel);
-    
+    table.appendChild(createTimeLabel('PM'));
     weekDates.forEach((date, dayIndex) => {
-        const cell = document.createElement('div');
-        cell.className = 'timetable-cell';
-        
-        const daySessions = sessionsByDay[dayIndex] || [];
-        // Include PM sessions (full-day events already shown in AM)
-        const pmSessions = daySessions.filter(session => {
-            const timeOfDay = getTimeOfDay(session.startTime);
-            return timeOfDay === 'PM';
-        });
-        
-        pmSessions.forEach(session => {
-            const sessionBlock = createSessionBlock(session);
-            cell.appendChild(sessionBlock);
-            cell.classList.add('has-session');
-        });
-        
-        timetable.appendChild(cell);
+        const cell = createCell(sessionsByDay[dayIndex], 'PM');
+        table.appendChild(cell);
     });
     
-    timetableContainer.appendChild(timetable);
-    timetableContainer.style.display = 'block';
+    container.appendChild(table);
+    container.style.display = 'block';
+}
+
+function createHeader(text, className = '') {
+    const div = document.createElement('div');
+    div.className = `timetable-header ${className}`;
+    div.textContent = text;
+    return div;
+}
+
+function createTimeLabel(text) {
+    const div = document.createElement('div');
+    div.className = 'time-slot';
+    div.textContent = text;
+    return div;
+}
+
+function createCell(daySessions, period) {
+    const cell = document.createElement('div');
+    cell.className = 'timetable-cell';
+    
+    const filtered = daySessions.filter(s => {
+        if (!s.startTime || s.startTime === 'Day') return period === 'AM';
+        const hour = parseInt(s.startTime.split(':')[0]);
+        return period === 'AM' ? hour < 12 : hour >= 12;
+    });
+    
+    filtered.forEach(session => {
+        const block = createSessionBlock(session);
+        cell.appendChild(block);
+    });
+    
+    return cell;
 }
 
 function createSessionBlock(session) {
-    const sessionBlock = document.createElement('div');
-    sessionBlock.className = 'session-block';
+    const block = document.createElement('div');
+    block.className = 'session-block';
     
-    // Determine activity class based on Public Name
-    const publicName = session.publicName.toLowerCase();
-    
-    if (publicName.includes('table tennis') || publicName.includes('tt ')) {
-        sessionBlock.classList.add('table-tennis');
-    } else if (publicName.includes('pickleball')) {
-        sessionBlock.classList.add('pickleball');
-    } else if (publicName.includes('yoga')) {
-        sessionBlock.classList.add('yoga');
-    } else if (publicName.includes('taekwondo')) {
-        sessionBlock.classList.add('taekwondo');
-    } else if (publicName.includes('cheerleading')) {
-        sessionBlock.classList.add('cheerleading');
-    } else if (publicName.includes('footsteps')) {
-        sessionBlock.classList.add('footsteps');
-    } else if (publicName.includes('smb')) {
-        sessionBlock.classList.add('smb');
-    } else if (publicName.includes('tournament') || publicName.includes('edttl') || publicName.includes('tte ')) {
-        sessionBlock.classList.add('tournament');
+    // Determine color
+    const name = session.publicName.toLowerCase();
+    if (name.includes('table tennis') || name.includes('tt ')) {
+        block.classList.add('table-tennis');
+    } else if (name.includes('pickleball')) {
+        block.classList.add('pickleball');
+    } else if (name.includes('yoga')) {
+        block.classList.add('yoga');
+    } else if (name.includes('taekwondo')) {
+        block.classList.add('taekwondo');
+    } else if (name.includes('cheerleading')) {
+        block.classList.add('cheerleading');
+    } else if (name.includes('footsteps')) {
+        block.classList.add('footsteps');
+    } else if (name.includes('smb')) {
+        block.classList.add('smb');
+    } else if (name.includes('tournament') || name.includes('edttl') || name.includes('tte')) {
+        block.classList.add('tournament');
     }
     
-    // Add session type class for styling
     const sessionType = session.sessionType.toLowerCase();
     if (sessionType.includes('private')) {
-        sessionBlock.classList.add('private-session');
+        block.classList.add('private-session');
     } else if (sessionType.includes('members')) {
-        sessionBlock.classList.add('members-only');
+        block.classList.add('members-only');
     }
     
-    // Check if it's a full-day event
-    const isFullDay = session.startTime === 'Day' || session.startTime === '';
-    if (isFullDay) {
-        sessionBlock.classList.add('full-day');
+    if (!session.startTime || session.startTime === 'Day') {
+        block.classList.add('full-day');
     }
     
-    const sessionName = document.createElement('div');
-    sessionName.className = 'session-name';
-    sessionName.textContent = session.publicName;
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'session-name';
+    nameDiv.textContent = session.publicName;
     
-    // Add session type badge if it's private or members only
     if (sessionType.includes('private') || sessionType.includes('members')) {
         const badge = document.createElement('span');
         badge.className = 'session-badge';
         badge.textContent = sessionType.includes('private') ? 'Private' : 'Members';
-        sessionName.appendChild(badge);
+        nameDiv.appendChild(badge);
     }
     
-    const sessionTime = document.createElement('div');
-    sessionTime.className = 'session-time';
-    
-    if (isFullDay) {
-        sessionTime.textContent = 'All Day';
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'session-time';
+    if (!session.startTime || session.startTime === 'Day') {
+        timeDiv.textContent = 'All Day';
     } else {
-        sessionTime.textContent = session.startTime && session.endTime 
-            ? `${session.startTime} - ${session.endTime}` 
-            : session.startTime || '';
+        timeDiv.textContent = session.endTime 
+            ? `${session.startTime} - ${session.endTime}`
+            : session.startTime;
     }
     
-    const sessionRoom = document.createElement('div');
-    sessionRoom.className = 'session-room';
-    sessionRoom.textContent = session.room;
+    const roomDiv = document.createElement('div');
+    roomDiv.className = 'session-room';
+    roomDiv.textContent = session.room;
     
-    sessionBlock.appendChild(sessionName);
-    sessionBlock.appendChild(sessionTime);
-    if (session.room) {
-        sessionBlock.appendChild(sessionRoom);
-    }
+    block.appendChild(nameDiv);
+    block.appendChild(timeDiv);
+    block.appendChild(roomDiv);
     
-    // Optionally add contact email (uncomment if you want to show it)
-    // if (session.contactEmail && session.contactEmail.trim()) {
-    //     const contactDiv = document.createElement('div');
-    //     contactDiv.className = 'session-contact';
-    //     contactDiv.textContent = session.contactEmail;
-    //     sessionBlock.appendChild(contactDiv);
-    // }
-    
-    return sessionBlock;
-}
-
-function showError(message) {
-    const loadingState = document.getElementById('loadingState');
-    loadingState.innerHTML = `
-        <div style="color: #e74c3c; padding: 2rem;">
-            <h3>⚠️ Error Loading Schedule</h3>
-            <p>${message}</p>
-            <p style="margin-top: 1rem; font-size: 0.9rem;">
-                Please ensure the Google Sheet is shared as "Anyone with the link can view"
-            </p>
-        </div>
-    `;
+    return block;
 }
 
 // ====================================
-// WEEK NAVIGATION
+// NAVIGATION
 // ====================================
 
 async function changeWeek(offset) {
     currentWeekOffset += offset;
     
-    // Show loading state
     document.getElementById('loadingState').style.display = 'block';
     document.getElementById('timetableContainer').style.display = 'none';
     
-    // Get new week dates
     const weekDates = getWeekDates(currentWeekOffset);
     displayWeek(weekDates);
     
-    // Fetch and display schedule
     const sessions = await fetchScheduleData();
     
-    // Always hide loading
     document.getElementById('loadingState').style.display = 'none';
     
-    if (sessions && sessions.length > 0) {
-        buildTimetable(sessions, weekDates);
-    } else if (sessions && sessions.length === 0) {
+    if (!sessions) {
         document.getElementById('timetableContainer').innerHTML = `
-            <div style="text-align: center; padding: 3rem; color: #666;">
-                <p style="font-size: 1.2rem; margin-bottom: 1rem;">📅 No sessions scheduled for this week</p>
-                <p style="font-size: 0.9rem;">Try navigating to a different week using the arrows above.</p>
+            <div style="text-align: center; padding: 3rem; color: #e74c3c;">
+                <h3>⚠️ Unable to load schedule</h3>
+                <p>Please check your internet connection and try again.</p>
             </div>
         `;
         document.getElementById('timetableContainer').style.display = 'block';
+        return;
     }
+    
+    if (sessions.length === 0) {
+        document.getElementById('timetableContainer').innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+                <p style="font-size: 1.2rem;">📅 No sessions scheduled for this week</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try navigating to a different week.</p>
+            </div>
+        `;
+        document.getElementById('timetableContainer').style.display = 'block';
+        return;
+    }
+    
+    buildTimetable(sessions, weekDates);
 }
 
 // ====================================
@@ -485,31 +370,39 @@ async function changeWeek(offset) {
 // ====================================
 
 async function init() {
-    // Get current week
+    console.log('Initializing calendar...');
+    
     const weekDates = getWeekDates(currentWeekOffset);
     displayWeek(weekDates);
     
-    // Fetch and display schedule
     const sessions = await fetchScheduleData();
     
-    // Always hide loading
     document.getElementById('loadingState').style.display = 'none';
     
-    if (sessions && sessions.length > 0) {
-        buildTimetable(sessions, weekDates);
-    } else if (sessions && sessions.length === 0) {
-        // Data loaded but no sessions found
+    if (!sessions) {
         document.getElementById('timetableContainer').innerHTML = `
-            <div style="text-align: center; padding: 3rem; color: #666;">
-                <p style="font-size: 1.2rem; margin-bottom: 1rem;">📅 No sessions scheduled for this week</p>
-                <p style="font-size: 0.9rem;">Try navigating to a different week using the arrows above.</p>
+            <div style="text-align: center; padding: 3rem; color: #e74c3c;">
+                <h3>⚠️ Unable to load schedule</h3>
+                <p>Please check the browser console for details.</p>
             </div>
         `;
         document.getElementById('timetableContainer').style.display = 'block';
+        return;
     }
-    // If sessions is null, showError was already called
+    
+    if (sessions.length === 0) {
+        document.getElementById('timetableContainer').innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+                <p style="font-size: 1.2rem;">📅 No sessions scheduled for this week</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try navigating to a different week using the arrows above.</p>
+            </div>
+        `;
+        document.getElementById('timetableContainer').style.display = 'block';
+        return;
+    }
+    
+    buildTimetable(sessions, weekDates);
+    console.log('Calendar initialized successfully');
 }
 
-// Run when page loads
 document.addEventListener('DOMContentLoaded', init);
-
