@@ -63,9 +63,10 @@ function parseCSVData(csvText) {
         
         // Skip if not enough columns or Show Online is not "Yes"
         // Treat blank/empty as "No"
-        if (cells.length < 10 || cells[9].trim() !== 'Yes') {
+        const showOnline = (cells[9] || '').toString().trim().toLowerCase();
+        if (cells.length < 10 || showOnline !== 'yes') {
             if (i <= 3) {
-                console.log(`Row ${i} skipped. Cells: ${cells.length}, Show Online: "${cells[9]}"`);
+                console.log(`Row ${i} skipped. Cells: ${cells.length}, Show Online: "${cells[9]}" (cleaned: "${showOnline}")`);
             }
             continue;
         }
@@ -463,9 +464,19 @@ async function changeWeek(offset) {
     // Fetch and display schedule
     const sessions = await fetchScheduleData();
     
-    if (sessions) {
-        document.getElementById('loadingState').style.display = 'none';
+    // Always hide loading
+    document.getElementById('loadingState').style.display = 'none';
+    
+    if (sessions && sessions.length > 0) {
         buildTimetable(sessions, weekDates);
+    } else if (sessions && sessions.length === 0) {
+        document.getElementById('timetableContainer').innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">📅 No sessions scheduled for this week</p>
+                <p style="font-size: 0.9rem;">Try navigating to a different week using the arrows above.</p>
+            </div>
+        `;
+        document.getElementById('timetableContainer').style.display = 'block';
     }
 }
 
@@ -481,10 +492,22 @@ async function init() {
     // Fetch and display schedule
     const sessions = await fetchScheduleData();
     
-    if (sessions) {
-        document.getElementById('loadingState').style.display = 'none';
+    // Always hide loading
+    document.getElementById('loadingState').style.display = 'none';
+    
+    if (sessions && sessions.length > 0) {
         buildTimetable(sessions, weekDates);
+    } else if (sessions && sessions.length === 0) {
+        // Data loaded but no sessions found
+        document.getElementById('timetableContainer').innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">📅 No sessions scheduled for this week</p>
+                <p style="font-size: 0.9rem;">Try navigating to a different week using the arrows above.</p>
+            </div>
+        `;
+        document.getElementById('timetableContainer').style.display = 'block';
     }
+    // If sessions is null, showError was already called
 }
 
 // Run when page loads
