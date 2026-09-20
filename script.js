@@ -266,8 +266,6 @@ function createSessionBlock(session) {
         block.classList.add('table-tennis');
     } else if (name.includes('pickleball')) {
         block.classList.add('pickleball');
-     } else if (name.includes('wren music')) {
-        block.classList.add('wren-music');
     } else if (name.includes('yoga')) {
         block.classList.add('yoga');
     } else if (name.includes('taekwondo')) {
@@ -280,7 +278,9 @@ function createSessionBlock(session) {
         block.classList.add('smb');
     } else if (name.includes('tournament') || name.includes('edttl') || name.includes('tte')) {
         block.classList.add('tournament');
-    }
+    } else if (name.includes('wren music')) {
+        block.classList.add('wren-music');
+        {
     
     const sessionType = session.sessionType.toLowerCase();
     if (sessionType.includes('private')) {
