@@ -278,7 +278,7 @@ function createSessionBlock(session) {
         block.classList.add('smb');
     } else if (name.includes('tournament') || name.includes('edttl') || name.includes('tte')) {
         block.classList.add('tournament');
-        {
+    }
     
     const sessionType = session.sessionType.toLowerCase();
     if (sessionType.includes('private')) {
