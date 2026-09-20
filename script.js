@@ -266,6 +266,8 @@ function createSessionBlock(session) {
         block.classList.add('table-tennis');
     } else if (name.includes('pickleball')) {
         block.classList.add('pickleball');
+     } else if (name.includes('wren music')) {
+        block.classList.add('wren-music');
     } else if (name.includes('yoga')) {
         block.classList.add('yoga');
     } else if (name.includes('taekwondo')) {
