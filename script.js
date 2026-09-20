@@ -278,8 +278,6 @@ function createSessionBlock(session) {
         block.classList.add('smb');
     } else if (name.includes('tournament') || name.includes('edttl') || name.includes('tte')) {
         block.classList.add('tournament');
-    } else if (name.includes('wren music')) || name.includes('wrenmusic ')) {
-        block.classList.add('wren-music');
         {
     
     const sessionType = session.sessionType.toLowerCase();
